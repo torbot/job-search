@@ -16,7 +16,27 @@ Then visit http://localhost:8080
 
 Pushes to `main` deploy automatically via GitHub Actions.
 
-After the first deploy, the site will be available at:
+### One-time GitHub setup
+
+1. Sign in to GitHub CLI (if you have not already):
+
+```bash
+gh auth login
+```
+
+2. Create the repo, push, and enable Pages:
+
+```bash
+./scripts/setup-github.sh
+```
+
+By default the repo name is `job-search`. Pass a different name if you prefer:
+
+```bash
+./scripts/setup-github.sh my-repo-name
+```
+
+After the first deploy completes, the site will be at:
 
 `https://<your-github-username>.github.io/job-search/`
 
