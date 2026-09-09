@@ -1,0 +1,11 @@
+.DS_Store
+Thumbs.db
+
+# Local backups may contain personal job-search data
+backups/
+
+# Editor / OS
+*.swp
+*~
+.vscode/
+.idea/
