@@ -4,13 +4,15 @@ An Opportunity Dashboard — local-first single-page app for tracking freelance,
 
 ## Run locally
 
-Open `index.html` in a browser, or serve the folder with any static server:
+From this folder:
 
 ```bash
-python3 -m http.server 8080
+npm run dev
 ```
 
-Then visit http://localhost:8080
+Then open **http://localhost:8080**
+
+The included `server.js` serves this folder with `Cache-Control: no-store`, so CSS/JS edits show up on refresh without query-string cache busts. Do not use `file://` or a leftover server on port 3000.
 
 ## Deploy (GitHub Pages)
 

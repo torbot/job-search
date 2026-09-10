@@ -258,7 +258,6 @@
     else if (state.view === "tasks") main.innerHTML = renderTasksView();
     else if (state.view === "settings") main.innerHTML = renderSettingsView();
     updateTasksBadge();
-    if (state.view === "opportunities" && state.oppView === "kanban") wireKanbanDnd();
   }
 
   function updateTasksBadge() {
@@ -326,15 +325,10 @@
     var cols = D.STATUSES;
     return '<div class="kanban">' + cols.map(function (s) {
       var items = DB.opportunities.filter(function (o) { return o.status === s; });
-      return '<div class="kanban-col"><div class="kanban-col-head"><span>' + escapeHtml(s) + '</span><span class="count">' + items.length + '</span></div>' +
-        '<div class="kanban-col-body">' + items.slice(0, 4).map(function (o) {
-          var fu = o.nextFollowUp ? dueLabel(o.nextFollowUp) : null;
-          return '<div class="kcard" data-action="open-opp" data-id="' + o.id + '">' +
-            '<div class="kcard-title">' + escapeHtml(o.title) + '</div>' +
-            '<div class="kcard-company">' + escapeHtml(companyName(o.companyId)) + '</div>' +
-            '<div class="kcard-meta">' + priorityTag(o.priority) + (fu ? '<span class="' + fu.cls + '" style="font-size:11px;">' + fu.text + '</span>' : '<span></span>') + '</div>' +
-            '</div>';
-        }).join("") + (items.length > 4 ? '<div class="text-muted" style="font-size:11px;padding:2px 2px;">+' + (items.length - 4) + ' more</div>' : '') + '</div></div>';
+      return '<div class="kanban-col" data-status-col="' + s + '" data-status-drop="' + s + '"><div class="kanban-col-head"><span>' + escapeHtml(s) + '</span><span class="count">' + items.length + '</span></div>' +
+        '<div class="kanban-col-body">' + items.slice(0, 4).map(kcard).join("") +
+        (items.length > 4 ? '<div class="text-muted" style="font-size:11px;padding:2px 2px;">+' + (items.length - 4) + ' more</div>' : '') +
+        '</div></div>';
     }).join("") + '</div>';
   }
 
@@ -450,56 +444,176 @@
     var main = D.STATUSES;
     var html = '<div class="kanban">' + main.map(function (s) {
       var items = opps.filter(function (o) { return o.status === s; });
-      return '<div class="kanban-col" data-status-col="' + s + '"><div class="kanban-col-head"><span>' + escapeHtml(s) + '</span><span class="count">' + items.length + '</span></div>' +
-        '<div class="kanban-col-body" data-status-drop="' + s + '">' + items.map(kcard).join("") + '</div></div>';
+      return '<div class="kanban-col" data-status-col="' + s + '" data-status-drop="' + s + '"><div class="kanban-col-head"><span>' + escapeHtml(s) + '</span><span class="count">' + items.length + '</span></div>' +
+        '<div class="kanban-col-body">' + items.map(kcard).join("") + '</div></div>';
     }).join("") + '</div>';
 
     var side = D.SIDELINE_STATUSES;
     html += '<div class="kanban-more"><div class="section-title" style="margin-bottom:8px;">Inactive</div><div class="kanban">' + side.map(function (s) {
       var items = opps.filter(function (o) { return o.status === s; });
-      return '<div class="kanban-col" data-status-col="' + s + '"><div class="kanban-col-head"><span>' + escapeHtml(s) + '</span><span class="count">' + items.length + '</span></div>' +
-        '<div class="kanban-col-body" data-status-drop="' + s + '">' + items.map(kcard).join("") + '</div></div>';
+      return '<div class="kanban-col" data-status-col="' + s + '" data-status-drop="' + s + '"><div class="kanban-col-head"><span>' + escapeHtml(s) + '</span><span class="count">' + items.length + '</span></div>' +
+        '<div class="kanban-col-body">' + items.map(kcard).join("") + '</div></div>';
     }).join("") + '</div></div>';
     return html;
   }
   function kcard(o) {
     var fu = o.nextFollowUp ? dueLabel(o.nextFollowUp) : null;
-    return '<div class="kcard" draggable="true" data-opp-id="' + o.id + '" data-action="open-opp" data-id="' + o.id + '">' +
+    return '<div class="kcard" role="button" tabindex="0" draggable="true" data-opp-id="' + o.id + '" data-id="' + o.id + '">' +
       '<div class="kcard-title">' + escapeHtml(o.title) + '</div>' +
       '<div class="kcard-company">' + escapeHtml(companyName(o.companyId)) + '</div>' +
       '<div class="kcard-meta">' + priorityTag(o.priority) + (fu ? '<span class="' + fu.cls + '" style="font-size:10.5px;">' + fu.text + '</span>' : '<span></span>') + '</div>' +
       '</div>';
   }
 
+  var kanbanDropActive = null;
+  var kanbanDrag = null;
+  var kanbanDidDrag = false;
+
+  function getKanbanColumnAt(x, y) {
+    var cols = document.querySelectorAll(".kanban-col[data-status-col]");
+    var nearest = null;
+    var nearestDist = Infinity;
+    for (var i = 0; i < cols.length; i++) {
+      var r = cols[i].getBoundingClientRect();
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return cols[i];
+      if (y < r.top - 48 || y > r.bottom + 48) continue;
+      var dx = x < r.left ? r.left - x : (x > r.right ? x - r.right : 0);
+      if (dx < nearestDist) {
+        nearestDist = dx;
+        nearest = cols[i];
+      }
+    }
+    return nearestDist <= 28 ? nearest : null;
+  }
+
+  function setKanbanDropHighlight(col) {
+    if (kanbanDropActive === col) return;
+    if (kanbanDropActive) kanbanDropActive.classList.remove("is-dragover");
+    kanbanDropActive = col || null;
+    if (kanbanDropActive) kanbanDropActive.classList.add("is-dragover");
+  }
+
+  function openOpportunityFromKanban(oppId) {
+    activeDrawerOpp = getOpportunity(oppId);
+    activeDrawerCompany = null;
+    activeDrawerContact = null;
+    openOpportunityDrawer(oppId);
+  }
+
+  function cleanupKanbanDrag() {
+    if (kanbanDrag && kanbanDrag.card) kanbanDrag.card.classList.remove("is-origin");
+    setKanbanDropHighlight(null);
+    kanbanDrag = null;
+  }
+
+  function commitKanbanDrop(col, oppId) {
+    var o = getOpportunity(oppId);
+    var newStatus = col ? (col.getAttribute("data-status-col") || col.getAttribute("data-status-drop")) : null;
+    cleanupKanbanDrag();
+    if (o && newStatus && o.status !== newStatus) {
+      o.status = newStatus;
+      logActivity(o.id, "Note", "Status changed to " + newStatus + ".");
+      saveDB();
+      toast("Moved to " + newStatus);
+    }
+    renderView();
+    kanbanDidDrag = true;
+    setTimeout(function () { kanbanDidDrag = false; }, 200);
+  }
+
+  function kanbanCardFromEvent(e) {
+    var t = e.target;
+    if (!t || typeof t.closest !== "function") return null;
+    if (t.closest("button, a, input, select, textarea, label")) return null;
+    return t.closest(".kanban-col[data-status-col] .kcard");
+  }
+
+  /* Native HTML5 DnD only. Custom pointer ghosts conflict with the browser's
+     own drag session (pointermove stops firing once dragstart begins). */
+  function onKanbanDragStart(e) {
+    var card = kanbanCardFromEvent(e);
+    if (!card) return;
+    var oppId = card.getAttribute("data-opp-id") || card.getAttribute("data-id");
+    if (!oppId) return;
+
+    kanbanDrag = {
+      card: card,
+      oppId: oppId,
+      hoverCol: card.closest(".kanban-col"),
+      dropped: false
+    };
+    card.classList.add("is-origin");
+    setKanbanDropHighlight(kanbanDrag.hoverCol);
+
+    if (e.dataTransfer) {
+      e.dataTransfer.setData("text/plain", oppId);
+      e.dataTransfer.effectAllowed = "move";
+      try {
+        e.dataTransfer.setDragImage(card, 16, 16);
+      } catch (err) { /* optional */ }
+    }
+  }
+
+  function onKanbanDragOver(e) {
+    var col = getKanbanColumnAt(e.clientX, e.clientY);
+    if (!col && !kanbanDrag) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    if (kanbanDrag) {
+      if (col) kanbanDrag.hoverCol = col;
+      setKanbanDropHighlight(col || kanbanDrag.hoverCol);
+    } else if (col) {
+      setKanbanDropHighlight(col);
+    }
+  }
+
+  function onKanbanDrop(e) {
+    e.preventDefault();
+    var col = getKanbanColumnAt(e.clientX, e.clientY) || (kanbanDrag && kanbanDrag.hoverCol);
+    var oppId = (kanbanDrag && kanbanDrag.oppId) || (e.dataTransfer && e.dataTransfer.getData("text/plain"));
+    if (kanbanDrag) kanbanDrag.dropped = true;
+    if (!oppId || !col) {
+      cleanupKanbanDrag();
+      return;
+    }
+    commitKanbanDrop(col, oppId);
+  }
+
+  function onKanbanDragEnd() {
+    if (kanbanDrag && !kanbanDrag.dropped) {
+      cleanupKanbanDrag();
+      renderView();
+    } else {
+      cleanupKanbanDrag();
+    }
+    setTimeout(function () { kanbanDidDrag = false; }, 200);
+  }
+
+  function onKanbanClick(e) {
+    if (kanbanDidDrag) return;
+    var card = kanbanCardFromEvent(e);
+    if (!card) return;
+    openOpportunityFromKanban(card.getAttribute("data-opp-id") || card.getAttribute("data-id"));
+  }
+
+  function onKanbanKeyDown(e) {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    var card = kanbanCardFromEvent(e);
+    if (!card) return;
+    e.preventDefault();
+    openOpportunityFromKanban(card.getAttribute("data-opp-id") || card.getAttribute("data-id"));
+  }
+
   function wireKanbanDnd() {
-    var cards = document.querySelectorAll(".kcard[draggable=true]");
-    cards.forEach(function (c) {
-      c.addEventListener("dragstart", function (e) {
-        e.dataTransfer.setData("text/plain", c.getAttribute("data-opp-id"));
-        e.dataTransfer.effectAllowed = "move";
-      });
-    });
-    var drops = document.querySelectorAll("[data-status-drop]");
-    drops.forEach(function (z) {
-      z.addEventListener("dragover", function (e) { e.preventDefault(); z.classList.add("is-dragover"); });
-      z.addEventListener("dragleave", function () { z.classList.remove("is-dragover"); });
-      z.addEventListener("drop", function (e) {
-        e.preventDefault();
-        z.classList.remove("is-dragover");
-        var id = e.dataTransfer.getData("text/plain");
-        var o = getOpportunity(id);
-        if (o) {
-          var newStatus = z.getAttribute("data-status-drop");
-          if (o.status !== newStatus) {
-            o.status = newStatus;
-            logActivity(o.id, "Note", "Status changed to " + newStatus + ".");
-            saveDB();
-            toast("Moved to " + newStatus);
-            renderView();
-          }
-        }
-      });
-    });
+    if (document.body.dataset.kanbanDnd) return;
+    document.body.dataset.kanbanDnd = "1";
+    document.addEventListener("dragstart", onKanbanDragStart);
+    document.addEventListener("dragenter", function (e) { e.preventDefault(); });
+    document.addEventListener("dragover", onKanbanDragOver);
+    document.addEventListener("drop", onKanbanDrop);
+    document.addEventListener("dragend", onKanbanDragEnd);
+    document.addEventListener("click", onKanbanClick);
+    document.addEventListener("keydown", onKanbanKeyDown);
   }
 
   function logActivity(oppId, type, note) {
@@ -755,19 +869,55 @@
   }
 
   /* ================= DRAWER SHOW/HIDE ================= */
-  function showDrawer() {
-    document.getElementById("scrim").hidden = false;
-    var drawer = document.getElementById("drawer");
-    drawer.hidden = false;
-    drawer.setAttribute("aria-hidden", "false");
+  function revealOverlay(scrim, panel) {
+    scrim.classList.remove("is-open");
+    panel.classList.remove("is-open");
+    scrim.hidden = false;
+    panel.hidden = false;
+    void panel.offsetWidth;
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        scrim.classList.add("is-open");
+        panel.classList.add("is-open");
+      });
+    });
   }
-  function closeDrawer() {
-    document.getElementById("scrim").hidden = true;
+
+  function hideOverlay(scrim, panel, onHidden) {
+    if (panel.hidden) return;
+    scrim.classList.remove("is-open");
+    panel.classList.remove("is-open");
+    var finished = false;
+    function done() {
+      if (finished) return;
+      finished = true;
+      panel.removeEventListener("transitionend", onEnd);
+      scrim.hidden = true;
+      panel.hidden = true;
+      if (onHidden) onHidden();
+    }
+    function onEnd(e) {
+      if (e.target === panel && e.propertyName === "transform") done();
+    }
+    panel.addEventListener("transitionend", onEnd);
+    setTimeout(done, 400);
+  }
+
+  function showDrawer() {
+    var scrim = document.getElementById("scrim");
     var drawer = document.getElementById("drawer");
-    drawer.hidden = true;
+    drawer.setAttribute("aria-hidden", "false");
+    revealOverlay(scrim, drawer);
+  }
+
+  function closeDrawer() {
+    var scrim = document.getElementById("scrim");
+    var drawer = document.getElementById("drawer");
     drawer.setAttribute("aria-hidden", "true");
-    document.getElementById("drawer-content").innerHTML = "";
-    renderView();
+    hideOverlay(scrim, drawer, function () {
+      document.getElementById("drawer-content").innerHTML = "";
+      renderView();
+    });
   }
 
   /* ================= COMPANIES VIEW ================= */
@@ -1157,8 +1307,35 @@
   }
 
   /* ================= MODAL SHOW/HIDE ================= */
-  function showModal() { document.getElementById("modal-wrap").hidden = false; }
-  function closeModal() { document.getElementById("modal-wrap").hidden = true; document.getElementById("modal-content").innerHTML = ""; }
+  function showModal() {
+    var wrap = document.getElementById("modal-wrap");
+    wrap.classList.remove("is-open");
+    wrap.hidden = false;
+    void wrap.offsetWidth;
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { wrap.classList.add("is-open"); });
+    });
+  }
+
+  function closeModal() {
+    var wrap = document.getElementById("modal-wrap");
+    var modal = document.getElementById("modal-content");
+    if (wrap.hidden) return;
+    wrap.classList.remove("is-open");
+    var finished = false;
+    function done() {
+      if (finished) return;
+      finished = true;
+      modal.removeEventListener("transitionend", onEnd);
+      wrap.hidden = true;
+      modal.innerHTML = "";
+    }
+    function onEnd(e) {
+      if (e.target === modal && e.propertyName === "transform") done();
+    }
+    modal.addEventListener("transitionend", onEnd);
+    setTimeout(done, 400);
+  }
 
   /* ================= GLOBAL SEARCH ================= */
   function runGlobalSearch(q) {
@@ -1266,6 +1443,7 @@
       case "close-modal": closeModal(); break;
       case "close-drawer": closeDrawer(); break;
       case "open-opp":
+        if (kanbanDidDrag) break;
         activeDrawerOpp = getOpportunity(id); activeDrawerCompany = null; activeDrawerContact = null;
         openOpportunityDrawer(id);
         break;
@@ -1326,6 +1504,7 @@
       case "reset-all": resetAll(); break;
       case "import-merge": break; // handled inline
       case "import-replace": break; // handled inline
+      case "toggle-theme": toggleTheme(); break;
       default: break;
     }
     if (action !== "toggle-filter-pop") {
@@ -1401,9 +1580,38 @@
     openOpportunityDrawer(id);
   }
 
+  /* ================= THEME ================= */
+  var THEME_KEY = "jobtrak_theme";
+
+  function getTheme() {
+    var t = document.documentElement.getAttribute("data-theme");
+    return t === "dark" ? "dark" : "light";
+  }
+
+  function applyTheme(theme) {
+    var next = theme === "dark" ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+    syncThemeToggle(next);
+  }
+
+  function syncThemeToggle(theme) {
+    var btn = document.querySelector(".theme-toggle");
+    if (!btn) return;
+    var isDark = theme === "dark";
+    btn.setAttribute("aria-checked", isDark ? "true" : "false");
+    btn.setAttribute("aria-label", isDark ? "Use light mode" : "Use dark mode");
+  }
+
+  function toggleTheme() {
+    applyTheme(getTheme() === "dark" ? "light" : "dark");
+  }
+
   /* ================= INIT ================= */
   function init() {
     DB = loadDB();
+    syncThemeToggle(getTheme());
+    wireKanbanDnd();
     wireGlobalEvents();
     setView("dashboard");
   }

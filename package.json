@@ -1,0 +1,10 @@
+{
+  "name": "jobtrak",
+  "version": "1.0.0",
+  "private": true,
+  "description": "JOBTRAK — local-first opportunity dashboard",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  }
+}

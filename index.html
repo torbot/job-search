@@ -1,15 +1,23 @@
 <!doctype html>
-<html lang="en" data-theme="jobtrak">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>JOBTRAK</title>
 <meta name="description" content="An Opportunity Dashboard for tracking freelance, contract, consulting and full-time opportunities." />
 <meta name="robots" content="noindex, nofollow" />
+<script>
+(function () {
+  try {
+    var t = localStorage.getItem("jobtrak_theme");
+    if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t);
+  } catch (e) {}
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Serif:wght@500&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="./styles.css?v=jobtrak1" />
+<link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
 
@@ -22,6 +30,18 @@
       <div class="sidenav-brand">
         <div class="brand-mark">JOBTRAK</div>
         <p class="brand-name">An Opportunity Dashboard</p>
+      </div>
+      <div class="sidenav-theme">
+        <button type="button" class="theme-toggle" data-action="toggle-theme" role="switch" aria-checked="false" aria-label="Use dark mode">
+          <span class="theme-toggle-text">Light</span>
+          <span class="theme-toggle-track" aria-hidden="true">
+            <span class="theme-toggle-thumb">
+              <svg class="theme-icon theme-icon-sun" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2.4" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.8v1.3M8 12.9v1.3M14.2 8h-1.3M3.1 8H1.8M12.4 3.6l-.9.9M4.5 11.5l-.9.9M12.4 12.4l-.9-.9M4.5 4.5l-.9-.9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+              <svg class="theme-icon theme-icon-moon" viewBox="0 0 16 16" fill="none"><path d="M12.6 9.1A5.2 5.2 0 0 1 6.9 3.4 5.3 5.3 0 1 0 12.6 9.1Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+            </span>
+          </span>
+          <span class="theme-toggle-text">Dark</span>
+        </button>
       </div>
       <div class="sidenav-nav">
         <button class="nav-item is-active" data-view="dashboard" data-action="nav">
@@ -48,7 +68,7 @@
       </div>
       <div class="sidenav-footer">
         <button class="nav-item" data-view="settings" data-action="nav">
-          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.4 4.6l-1.4 1.4M6 12.6l-1.4 1.4M15.4 15.4l-1.4-1.4M6 7.4 4.6 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/></svg>
           <span>Settings</span>
         </button>
       </div>
