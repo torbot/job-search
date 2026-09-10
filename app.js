@@ -1,11 +1,11 @@
 /* =========================================================
-   Job Search Command Center — Application Logic
+   JOBTRAK — Application Logic
    Local-first. No backend, no network calls, no build step.
    ========================================================= */
 (function () {
   "use strict";
 
-  var D = window.JSCC_DATA;
+  var D = window.JOBTRAK_DATA;
 
   /* ================= STORE ================= */
   var DB = null;
@@ -13,6 +13,12 @@
   function loadDB() {
     var raw = null;
     try { raw = localStorage.getItem(D.STORAGE_KEY); } catch (e) { raw = null; }
+    if (!raw && D.LEGACY_STORAGE_KEY) {
+      try { raw = localStorage.getItem(D.LEGACY_STORAGE_KEY); } catch (e) { raw = null; }
+      if (raw) {
+        try { localStorage.setItem(D.STORAGE_KEY, raw); } catch (e) { console.warn("JOBTRAK: could not migrate localStorage key", e); }
+      }
+    }
     if (raw) {
       try { return JSON.parse(raw); } catch (e) { /* fall through to seed */ }
     }
@@ -21,7 +27,7 @@
     return seed;
   }
   function saveDBRaw(db) {
-    try { localStorage.setItem(D.STORAGE_KEY, JSON.stringify(db)); } catch (e) { console.warn("JSCC: could not persist to localStorage", e); }
+    try { localStorage.setItem(D.STORAGE_KEY, JSON.stringify(db)); } catch (e) { console.warn("JOBTRAK: could not persist to localStorage", e); }
   }
   function saveDB() { saveDBRaw(DB); }
 
@@ -304,8 +310,7 @@
     var pipelineHtml = renderPipelineMini();
 
     return (
-      '<div class="view-header"><div><h1 class="view-title">Dashboard</h1><div class="view-subtitle">' + opps.length + ' opportunities tracked · updated locally in this browser</div></div>' +
-      '<div class="view-header-actions"><button class="btn btn-primary" data-action="open-quick-add"><span class="btn-plus">+</span> Add Opportunity</button></div></div>' +
+      '<div class="view-header"><div><h1 class="view-title">Dashboard</h1><div class="view-subtitle">' + opps.length + ' opportunities tracked · updated locally in this browser</div></div></div>' +
       '<div class="metrics-row">' + metrics.map(function (m) {
         return '<div class="metric-card" data-action="metric-click" data-metric="' + m[2] + '"><div class="metric-value">' + m[1] + '</div><div class="metric-label">' + m[0] + '</div></div>';
       }).join("") + '</div>' +
@@ -323,7 +328,12 @@
       var items = DB.opportunities.filter(function (o) { return o.status === s; });
       return '<div class="kanban-col"><div class="kanban-col-head"><span>' + escapeHtml(s) + '</span><span class="count">' + items.length + '</span></div>' +
         '<div class="kanban-col-body">' + items.slice(0, 4).map(function (o) {
-          return '<div class="kcard" data-action="open-opp" data-id="' + o.id + '"><div class="kcard-title">' + escapeHtml(o.title) + '</div><div class="kcard-company">' + escapeHtml(companyName(o.companyId)) + '</div></div>';
+          var fu = o.nextFollowUp ? dueLabel(o.nextFollowUp) : null;
+          return '<div class="kcard" data-action="open-opp" data-id="' + o.id + '">' +
+            '<div class="kcard-title">' + escapeHtml(o.title) + '</div>' +
+            '<div class="kcard-company">' + escapeHtml(companyName(o.companyId)) + '</div>' +
+            '<div class="kcard-meta">' + priorityTag(o.priority) + (fu ? '<span class="' + fu.cls + '" style="font-size:11px;">' + fu.text + '</span>' : '<span></span>') + '</div>' +
+            '</div>';
         }).join("") + (items.length > 4 ? '<div class="text-muted" style="font-size:11px;padding:2px 2px;">+' + (items.length - 4) + ' more</div>' : '') + '</div></div>';
     }).join("") + '</div>';
   }
@@ -332,7 +342,7 @@
     return (
       '<div class="view-header"><div><h1 class="view-title">Dashboard</h1></div></div>' +
       '<div class="empty-state">' +
-      '<h3>Your command center is empty</h3>' +
+      '<h3>Your dashboard is empty</h3>' +
       '<p>Start by adding an opportunity you\'re researching, applying to, or pitching. Everything is saved locally in this browser — nothing leaves your machine.</p>' +
       '<div class="empty-actions">' +
       '<button class="btn btn-primary" data-action="open-quick-add">+ Add your first opportunity</button>' +
@@ -352,8 +362,7 @@
       ["applied", "Applied"], ["highpriority", "High Priority"]
     ];
 
-    var html = '<div class="view-header"><div><h1 class="view-title">Opportunities</h1><div class="view-subtitle">Every lead, application and conversation in one place</div></div>' +
-      '<div class="view-header-actions"><button class="btn btn-primary" data-action="open-quick-add"><span class="btn-plus">+</span> Add Opportunity</button></div></div>';
+    var html = '<div class="view-header"><div><h1 class="view-title">Opportunities</h1><div class="view-subtitle">Every lead, application and conversation in one place</div></div></div>';
 
     html += '<div class="saved-views">' + savedViews.map(function (v) {
       return '<button class="chip ' + (state.savedView === v[0] ? "is-active" : "") + '" data-action="saved-view" data-name="' + v[0] + '">' + v[1] + '</button>';
@@ -904,7 +913,7 @@
         '<div class="settings-actions"><button class="btn" data-action="load-sample">Load Sample Data</button><button class="btn btn-danger" data-action="reset-all">Erase All Data</button></div>' +
       '</div>' +
       '<div class="settings-block">' +
-        '<h3>About</h3><p>Job Search Command Center is a local-first tool — it works entirely in your browser with no account, server or network connection required after this page has loaded. Nothing you enter is ever sent anywhere.</p>' +
+        '<h3>About</h3><p>JOBTRAK is a local-first opportunity dashboard — it works entirely in your browser with no account, server or network connection required after this page has loaded. Nothing you enter is ever sent anywhere.</p>' +
       '</div>'
     );
   }
@@ -1046,7 +1055,7 @@
   /* ================= IMPORT / EXPORT ================= */
   function exportJSON() {
     var blob = new Blob([JSON.stringify(DB, null, 2)], { type: "application/json" });
-    downloadBlob(blob, "job-search-command-center-backup-" + todayISO() + ".json");
+    downloadBlob(blob, "jobtrak-backup-" + todayISO() + ".json");
     toast("Backup exported");
   }
   function exportCSV() {

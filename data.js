@@ -1,11 +1,12 @@
 /* =========================================================
-   Job Search Command Center — constants & seed data
-   Loaded before app.js. Attaches to window.JSCC_DATA
+   JOBTRAK — constants & seed data
+   Loaded before app.js. Attaches to window.JOBTRAK_DATA
    ========================================================= */
 (function () {
   "use strict";
 
-  var STORAGE_KEY = "jscc_data_v1";
+  var STORAGE_KEY = "jobtrak_data_v1";
+  var LEGACY_STORAGE_KEY = "jscc_data_v1";
 
   var STATUSES = [
     "Researching", "Interested", "Contacted", "Applied", "Conversation",
@@ -411,8 +412,9 @@
     };
   }
 
-  window.JSCC_DATA = {
+  window.JOBTRAK_DATA = {
     STORAGE_KEY: STORAGE_KEY,
+    LEGACY_STORAGE_KEY: LEGACY_STORAGE_KEY,
     STATUSES: STATUSES,
     SIDELINE_STATUSES: SIDELINE_STATUSES,
     ALL_STATUSES: ALL_STATUSES,

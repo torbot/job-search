@@ -1,6 +1,6 @@
-# Job Search Command Center
+# JOBTRAK
 
-Local-first single-page app for tracking freelance, contract, consulting, and full-time opportunities. All data stays in your browser (localStorage).
+An Opportunity Dashboard — local-first single-page app for tracking freelance, contract, consulting, and full-time opportunities. All data stays in your browser (localStorage).
 
 ## Run locally
 
@@ -50,6 +50,6 @@ After the first deploy completes, the site will be at:
 
 ## Data
 
-Your live data is stored in the browser under the key `jscc_data_v1`. Use **Settings → Export JSON Backup** periodically. Import from **Settings → Choose File**.
+Your live data is stored in the browser under the key `jobtrak_data_v1`. Use **Settings → Export JSON Backup** periodically. Import from **Settings → Choose File**.
 
 Exported backups in `backups/` are not committed to git because they may contain personal information.

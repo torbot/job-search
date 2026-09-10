@@ -26,7 +26,7 @@ else
     --public \
     --source=. \
     --remote=origin \
-    --description "Local-first job search command center for tracking opportunities, contacts, and tasks."
+    --description "JOBTRAK — an opportunity dashboard for tracking opportunities, contacts, and tasks."
 fi
 
 echo "Pushing main..."
